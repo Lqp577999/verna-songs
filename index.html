@@ -85,7 +85,7 @@
       </div>
     </main>
   </div>
-  <script src="songs-data.js?v=20260716-final"></script>
+  <script src="songs-data.js?v=20260730-631"></script>
   <script>
     const PAGE_SIZE=10;let songs=[],filtered=[],page=1;
     const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -101,7 +101,7 @@
     function makeSoundline(){const box=document.querySelector('.soundline');for(let i=0;i<72;i++){const bar=document.createElement('i');bar.style.setProperty('--h',`${8+Math.random()*38}px`);bar.style.setProperty('--d',`${-Math.random()*1.8}s`);bar.style.setProperty('--speed',`${1.2+Math.random()*1.2}s`);box.append(bar)}}
     document.querySelectorAll('.filter-trigger').forEach(trigger=>trigger.onclick=e=>{e.stopPropagation();const box=trigger.closest('.select-box'),opening=!box.classList.contains('open');closeFilters(box);box.classList.toggle('open',opening);trigger.setAttribute('aria-expanded',String(opening))});document.addEventListener('click',()=>closeFilters());document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeFilters();document.activeElement?.blur()}});['#query','#language','#genre','#type'].forEach(id=>$(id).addEventListener(id==='#query'?'input':'change',e=>{if(id!=='#query'){const box=e.target.closest('.select-box');box.classList.remove('changed');requestAnimationFrame(()=>box.classList.add('changed'));setTimeout(()=>box.classList.remove('changed'),430)}apply(true)}));$('#random').onclick=()=>{if(!filtered.length)return showToast('当前条件下没有歌曲');const button=$('#random');button.classList.add('is-picking');button.textContent='正在抽选…';setTimeout(()=>{const picked=filtered[Math.floor(Math.random()*filtered.length)];button.classList.remove('is-picking');button.textContent='随机选一首';const notice=$('#notice');notice.textContent=`随机抽中：${picked.title}${picked.artist?`（${picked.artist}）`:''}`;notice.classList.remove('flash');requestAnimationFrame(()=>notice.classList.add('flash'));copySong(picked)},520)};$('#go').onclick=()=>{page=Number($('#jump').value)||1;render()};$('#jump').onkeydown=e=>{if(e.key==='Enter')$('#go').click()};makeSoundline();
     function loadSongs(items){songs=items;filtered=[...songs];const count=$('#totalCount');count.textContent=songs.length;count.classList.add('bump');setTimeout(()=>count.classList.remove('bump'),500);addOptions('#language',songs.map(s=>s.language));addOptions('#genre',songs.map(s=>s.genre));addOptions('#type',songs.map(s=>s.type));render()}
-    fetch('songs.csv').then(r=>{if(!r.ok)throw Error();return r.text()}).then(text=>loadSongs(parseCSV(text.replace(/^\uFEFF/,'')))).catch(()=>{if(Array.isArray(window.VERNA_SONGS)&&window.VERNA_SONGS.length)loadSongs(window.VERNA_SONGS);else{$('#rows').innerHTML='<tr><td colspan="7" class="empty">歌单载入失败，请确认 songs.csv 与网页位于同一文件夹。</td></tr>';$('#totalCount').textContent='0'}})
+    fetch('songs.csv?v=20260730-631',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.text()}).then(text=>loadSongs(parseCSV(text.replace(/^\uFEFF/,'')))).catch(()=>{if(Array.isArray(window.VERNA_SONGS)&&window.VERNA_SONGS.length)loadSongs(window.VERNA_SONGS);else{$('#rows').innerHTML='<tr><td colspan="7" class="empty">歌单载入失败，请确认 songs.csv 与网页位于同一文件夹。</td></tr>';$('#totalCount').textContent='0'}})
   </script>
 </body>
 </html>
