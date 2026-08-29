@@ -229,6 +229,19 @@ a:focus-visible,
   background: #30a481;
 }
 
+.avatar-ring img {
+  animation: recordSpin 20s linear infinite;
+  transform-origin: center;
+}
+
+@keyframes recordSpin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar-ring img { animation: none; }
+}
+
 .hero-copy {
   padding: var(--space-7) clamp(34px, 5vw, 68px) 42px;
 }
@@ -428,9 +441,22 @@ a:focus-visible,
 
 .filter-menu {
   z-index: 40;
+  max-height: min(320px, var(--menu-available-height, 50vh));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scroll-padding-block: 7px;
+  touch-action: pan-y;
   border-color: rgba(155, 63, 135, 0.2);
   background: rgba(255, 252, 255, 0.98);
   box-shadow: 0 22px 46px rgba(72, 32, 67, 0.17);
+}
+
+.select-box.menu-up .filter-menu {
+  top: auto;
+  bottom: calc(100% + 8px);
+  transform-origin: bottom;
 }
 
 .filter-option {
@@ -482,6 +508,13 @@ a:focus-visible,
 th,
 td {
   border-bottom-color: rgba(145, 68, 122, 0.11);
+}
+
+/* Keep the final song separate from the reserved blank page space. */
+@media (min-width: 721px) {
+  tbody tr:last-child td:where(:not(.empty)) {
+    border-bottom: 1px solid rgba(145, 68, 122, 0.11);
+  }
 }
 
 th {
@@ -1223,12 +1256,26 @@ tbody.reveal tr {
   font-size: 13px;
   line-height: 1.6;
   text-align: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 20px;
 }
 
 .site-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: inherit;
   text-decoration: none;
   text-underline-offset: 3px;
+}
+
+.police-filing img {
+  width: 20px;
+  height: auto;
+  flex: 0 0 20px;
 }
 
 .site-footer a:hover,
@@ -1244,4 +1291,33 @@ tbody.reveal tr {
     padding: 12px 10px 18px;
     font-size: 12px;
   }
+}
+
+/* Keep the first page's ten-song space; long mobile cards can scroll instead
+   of being squeezed, clipped, or moving the pagination controls. */
+.table-shell {
+  display: flow-root;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.table-shell.page-size-probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.page-size-probe * {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media (max-width: 720px) {
+  .table-shell { overflow-x: hidden; }
 }
