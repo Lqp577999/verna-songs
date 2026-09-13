@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="referrer" content="no-referrer"><meta name="robots" content="noindex,nofollow"><meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.github.com; object-src 'none'; base-uri 'none'; form-action 'none'"><title>薇尔娜 · 歌单管理</title><link rel="stylesheet" href="admin.css"></head>
+<body><main class="workspace">
+ <header><small>VERNA · 私密工作台</small><h1>歌单管理</h1><p>编辑后保存到歌单仓库，发布状态单独显示。</p><a href="../" target="_blank" rel="noopener noreferrer">查看公开歌单 ↗</a></header>
+ <p id="error" class="error" role="alert" hidden></p><p id="notice" role="status"></p><p id="sync" class="sync">等待私密管理链接</p>
+ <div class="toolbar"><button id="add" disabled>新增歌曲</button><button id="import" disabled>批量导入</button><button id="backup" disabled>导出完整备份</button><button id="refresh" disabled>刷新歌单</button><button id="check-published" disabled>检查发布</button></div>
+ <div class="catalog-tools"><div class="tabs"><button id="active-tab" aria-pressed="true">歌曲 <span id="count">0</span></button><button id="trash-tab" aria-pressed="false">回收站 <span id="trash-count">0</span></button></div><label>搜索 <input id="search" placeholder="编号、歌名、歌手或备注"></label></div>
+ <p id="results" class="muted"></p><div id="rows" class="rows"></div><p id="empty" hidden>当前没有符合条件的歌曲。</p>
+ <nav class="pager" aria-label="管理分页"><button id="first" disabled>首页</button><button id="prev" disabled>上一页</button><span id="page">1 / 1</span><button id="next" disabled>下一页</button><button id="last" disabled>尾页</button></nav>
+ <footer>私密链接相当于仓库钥匙，请勿分享。令牌仅在本页内存中使用，刷新后请从私密书签重新进入。<a href="setup.html">首次设置说明</a></footer>
+</main>
+<dialog id="editor" aria-labelledby="edit-title"><h2 id="edit-title">新增歌曲</h2><form id="edit-form">
+ <div class="form-grid"><label>编号<input name="id" maxlength="100" placeholder="留空自动生成稳定编号"></label><label>歌名<input name="title" maxlength="200" required></label><label>歌手<input name="artist" maxlength="200"></label><label>语言<input name="language" maxlength="80" list="languages"></label><label>曲风<input name="genre" maxlength="200" list="genres"></label><label>点歌类型<input name="type" maxlength="80" value="免费" list="types" required></label></div>
+ <label>备注<textarea name="notes" maxlength="2000"></textarea></label>
+ <label>已核实的 B 站翻唱链接<textarea name="covers" placeholder="每行：标题 | https://www.bilibili.com/video/BV…/" maxlength="15000"></textarea></label><p class="muted">可填多条。仅添加已确认对应这首歌曲的真实翻唱；链接不会自动播放。</p>
+ <p id="edit-error" class="error" role="alert"></p><button id="edit-refresh" type="button" hidden>刷新歌单，保留输入</button>
+ <div class="dialog-actions"><button id="save" type="submit">保存歌曲</button><button type="button" data-close="editor">取消</button></div>
+</form></dialog>
+<dialog id="importer" aria-labelledby="import-title"><h2 id="import-title">批量导入</h2><p>粘贴完整 JSON 备份，或七列表格（制表符 / CSV）：编号、歌名、歌手、语言、曲风、点歌类型、备注。可包含同顺序中文表头，空白列请保留。</p>
+ <p>合并导入：新增未出现的编号与「歌名＋歌手」；重复项（包括回收站）跳过，现有字段不会覆盖。JSON 中新增条目的编号、日期、排序、备注、翻唱链接及回收站状态完整保留。表格不含翻唱链接，新增项默认为空。</p>
+ <label>选择备份文件<input id="import-file" type="file" accept=".json,.csv,.tsv,.txt"></label><label>导入内容<textarea id="batch" maxlength="1500000"></textarea></label>
+ <button id="preview-import">预览查重</button><p id="import-summary" role="status"></p><p id="import-error" class="error" role="alert"></p><button id="import-refresh" hidden>刷新歌单，保留输入</button>
+ <div class="dialog-actions"><button id="import-save" disabled>确认合并保存</button><button data-close="importer">取消</button></div>
+</dialog>
+<datalist id="languages"></datalist><datalist id="genres"></datalist><datalist id="types"><option>免费</option><option>SC</option><option>舰限</option></datalist>
+<script type="module" src="admin.mjs"></script></body></html>

@@ -32,6 +32,7 @@
     @media(max-width:720px){.site{padding:10px}.hero{grid-template-columns:100px 1fr;min-height:0;border-radius:25px}.portrait-stage{min-height:154px}.portrait-stage:before{display:none}.avatar-ring{width:82px;height:82px;padding:4px}.hero-copy{padding:18px 14px}.eyebrow{font-size:8px}.hero h1{font-size:29px}.intro{grid-column:1/-1;margin:10px 0;font-size:11px;line-height:1.6}.meta{grid-column:1/-1}.meta-item{min-height:36px;padding-right:9px;font-size:10px}.line-icon{width:15px;height:15px;flex-basis:15px}.catalog{border-radius:25px}.catalog-head{padding:20px 16px 15px}.controls{padding:14px 12px;grid-template-columns:1fr 1fr;gap:8px}.search{grid-column:1/-1}.select-box:last-of-type{grid-column:auto}.random{grid-column:auto;height:42px}.notice{padding-left:16px}.table-shell{margin:0 10px}.pager{padding:15px 12px 22px;align-items:flex-start;flex-direction:column}.page-meta{display:none}.jump{align-self:flex-end}th:nth-child(1),td:nth-child(1),th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){display:none}table{min-width:0}th:nth-child(2){width:48%}th:nth-child(6){width:20%}th:nth-child(7){width:32%}}
   </style>
   <link rel="stylesheet" href="refined.css?v=20260828-row-divider">
+  <link rel="stylesheet" href="catalog-upgrade.css">
 </head>
 <body>
   <div class="site">
@@ -72,6 +73,13 @@
         <div class="select-box" data-placeholder="全部权限"><span class="filter-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 5 6v5c0 4.7 2.8 8.1 7 10 4.2-1.9 7-5.3 7-10V6l-7-3z"></path><path d="m9 12 2 2 4-4"></path></svg></span><button type="button" class="filter-trigger" aria-label="按权限筛选" aria-haspopup="listbox" aria-expanded="false"><span class="filter-value">全部权限</span></button><div class="filter-menu" role="listbox" aria-label="权限选项"></div><input type="hidden" id="type" value=""></div>
         <button id="random" class="random">随机选一首</button>
       </div>
+      <div class="viewer-tools" aria-label="我的歌曲">
+        <button data-view="all" aria-pressed="true">全部歌曲</button>
+        <button data-view="favorites" aria-pressed="false">我的收藏</button>
+        <button data-view="recent" aria-pressed="false">最近点过</button>
+        <button id="clear-recent">清空最近点过</button>
+        <span>收藏与最近点过保存在当前浏览器</span>
+      </div>
       <div id="notice" class="notice" aria-live="polite"></div>
       <div class="table-shell">
         <table>
@@ -90,67 +98,18 @@
     <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">浙ICP备2026066791号-1</a>
     <a class="police-filing" href="https://beian.mps.gov.cn/#/query/webSearch?code=33018502002665" target="_blank" rel="noopener noreferrer"><img src="assets/police-beian.png" width="20" height="22" alt="" aria-hidden="true">浙公网安备33018502002665号</a>
   </footer>
+  <dialog id="candidate" aria-labelledby="candidate-heading">
+    <h2 id="candidate-heading">随机候选</h2><p id="candidate-name" class="candidate-title"></p><p id="candidate-artist"></p>
+    <p>从当前搜索和筛选结果中选出，确认后复制点歌文字。</p>
+    <div class="dialog-actions"><button id="another">换一首</button><button id="choose-candidate">确认复制</button><button data-close="candidate">取消</button></div>
+  </dialog>
+  <dialog id="manual-copy" aria-labelledby="manual-heading">
+    <h2 id="manual-heading">手动复制点歌</h2><p>浏览器未允许自动复制。请选中下面的文字复制，再确认已完成。</p>
+    <textarea id="manual-value" readonly aria-label="点歌文字"></textarea>
+    <div class="dialog-actions"><button id="manual-copy-done">我已手动复制</button><button data-close="manual-copy">取消</button></div>
+  </dialog>
   <script src="songs-data.js?v=20260730-631"></script>
-  <script>
-    const PAGE_SIZE=10;let songs=[],filtered=[],page=1;
-    let pageReferenceRows='',measuredPageWidth=0;
-    const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-    function parseCSV(text){const rows=[];let row=[],cell='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i],n=text[i+1];if(c==='"'&&quoted&&n==='"'){cell+='"';i++}else if(c==='"')quoted=!quoted;else if(c===','&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&n==='\n')i++;row.push(cell);if(row.some(Boolean))rows.push(row);row=[];cell=''}else cell+=c}if(cell||row.length){row.push(cell);rows.push(row)}return rows.slice(1).map(r=>({id:r[0]||'',title:r[1]||'',artist:r[2]||'',language:r[3]||'',genre:r[4]||'',type:r[5]||'免费'}))}
-    function closeFilters(except=null){document.querySelectorAll('.select-box.open').forEach(box=>{if(box!==except){box.classList.remove('open');box.querySelector('.filter-trigger').setAttribute('aria-expanded','false')}})}
-    function addOptions(id,values){const input=$(id),box=input.closest('.select-box'),menu=box.querySelector('.filter-menu'),placeholder=box.dataset.placeholder,items=['',...[...new Set(values.filter(Boolean))].sort((a,b)=>a.localeCompare(b,'zh-CN'))];menu.innerHTML=items.map((v,i)=>`<button type="button" class="filter-option${i===0?' selected':''}" role="option" aria-selected="${i===0}" data-value="${esc(v)}">${esc(v||placeholder)}</button>`).join('');menu.querySelectorAll('.filter-option').forEach(option=>option.onclick=e=>{e.stopPropagation();input.value=option.dataset.value;box.querySelector('.filter-value').textContent=option.textContent;menu.querySelectorAll('.filter-option').forEach(item=>{const active=item===option;item.classList.toggle('selected',active);item.setAttribute('aria-selected',String(active))});box.classList.remove('open');box.querySelector('.filter-trigger').setAttribute('aria-expanded','false');input.dispatchEvent(new Event('change',{bubbles:true}))})}
-    function apply(reset=true){const q=$('#query').value.trim().toLocaleLowerCase('zh-CN'),l=$('#language').value,g=$('#genre').value,t=$('#type').value;filtered=songs.filter(s=>(!q||[s.id,s.title,s.artist].join(' ').toLocaleLowerCase('zh-CN').includes(q))&&(!l||s.language===l)&&(!g||s.genre===g)&&(!t||s.type===t));if(reset)page=1;render()}
-    function reservePageSpace(referenceRows='') {
-      if (!pageReferenceRows && referenceRows) pageReferenceRows=referenceRows;
-      const shell=$('.table-shell'),width=parseFloat(getComputedStyle(shell).width);
-      if (!pageReferenceRows || !width || width===measuredPageWidth) return;
-      // Measure the original ten-song page at the current responsive width.
-      // The temporary, inert sample never becomes a real song or a focus target.
-      const sample=shell.cloneNode(false),table=shell.querySelector('table').cloneNode(false);
-      sample.classList.add('page-size-probe');
-      sample.setAttribute('aria-hidden','true');
-      sample.inert=true;
-      sample.style.width=`${width}px`;
-      table.append(shell.querySelector('thead').cloneNode(true));
-      const body=document.createElement('tbody');
-      body.className='reveal';
-      body.innerHTML=pageReferenceRows;
-      table.append(body);
-      sample.append(table);
-      $('.catalog').append(sample);
-      const height=Math.ceil(parseFloat(getComputedStyle(sample).height));
-      sample.remove();
-      measuredPageWidth=width;
-      shell.style.height=`${height}px`;
-    }
-    function positionFilterMenu(box) {
-      const trigger=box.querySelector('.filter-trigger').getBoundingClientRect();
-      const catalog=$('.catalog').getBoundingClientRect();
-      const gap=8,edge=12;
-      const below=Math.max(0,Math.min(innerHeight-edge,catalog.bottom-edge)-trigger.bottom-gap);
-      const above=Math.max(0,trigger.top-gap-Math.max(edge,catalog.top+edge));
-      const upward=below<Math.min(320,box.querySelector('.filter-menu').scrollHeight) && above>below;
-      box.classList.toggle('menu-up',upward);
-      box.style.setProperty('--menu-available-height',`${Math.floor(upward?above:below)}px`);
-    }
-    let menuPositionFrame=0;
-    function scheduleFilterPosition() {
-      cancelAnimationFrame(menuPositionFrame);
-      menuPositionFrame=requestAnimationFrame(()=>document.querySelectorAll('.select-box.open').forEach(positionFilterMenu));
-    }
-    window.addEventListener('resize',()=>{reservePageSpace();scheduleFilterPosition()},{passive:true});
-    window.addEventListener('scroll',scheduleFilterPosition,{passive:true});
-    if ('ResizeObserver' in window) new ResizeObserver(()=>reservePageSpace()).observe($('.table-shell'));
-    document.fonts?.ready.then(()=>{measuredPageWidth=0;reservePageSpace()});
-    function render(){const total=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));page=Math.max(1,Math.min(page,total));const items=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE),rows=$('#rows');rows.classList.remove('reveal');rows.innerHTML=items.length?items.map((s,i)=>`<tr style="--i:${i}"><td class="number">${esc(s.id)}</td><td class="title">${esc(s.title)}</td><td>${esc(s.artist)||'<span class="muted">待补充</span>'}</td><td>${esc(s.language)||'—'}</td><td>${esc(s.genre)||'—'}</td><td><span class="tag ${s.type==='SC'?'sc':s.type==='舰限'?'ship':'free'}">${esc(s.type)}</span></td><td><button class="copy" data-id="${esc(s.id)}">复制点歌</button></td></tr>`).join(''):'<tr><td colspan="7" class="empty">没有符合条件的歌曲，请调整搜索或筛选。</td></tr>';reservePageSpace(items.length===PAGE_SIZE?rows.innerHTML:'');$('.table-shell').scrollTop=0;requestAnimationFrame(()=>rows.classList.add('reveal'));document.querySelectorAll('.copy').forEach(b=>b.onclick=()=>copySong(songs.find(s=>s.id===b.dataset.id),b));renderPages(total);$('#pageMeta').textContent=`找到 ${filtered.length} 首 · 第 ${page}/${total} 页`;$('#jump').value=page}
-    function goToPage(next){const target=Number(next)||1;document.documentElement.style.setProperty('--page-shift',target>page?'18px':target<page?'-18px':'0px');page=target;render()}
-    function renderPages(total){const visible=[];for(let p=1;p<=total;p++)if(p===1||p===total||Math.abs(p-page)<=1)visible.push(p);let last=0,html=`<button class="page-btn" data-p="${page-1}" ${page===1?'disabled':''}>‹</button>`;visible.forEach(p=>{if(last&&p-last>1)html+='<span>…</span>';html+=`<button class="page-btn ${p===page?'active':''}" data-p="${p}">${p}</button>`;last=p});html+=`<button class="page-btn" data-p="${page+1}" ${page===total?'disabled':''}>›</button>`;$('#pages').innerHTML=html;document.querySelectorAll('.page-btn:not(:disabled)').forEach(b=>b.onclick=()=>goToPage(b.dataset.p))}
-    async function copySong(s,button){if(!s)return;const text=s.artist?`点歌 ${s.title}（${s.artist}）`:`点歌 ${s.title}`;try{await navigator.clipboard.writeText(text)}catch{const x=document.createElement('textarea');x.value=text;document.body.append(x);x.select();document.execCommand('copy');x.remove()}if(button){button.classList.add('copied');button.textContent='已复制 ✓';setTimeout(()=>{button.classList.remove('copied');button.textContent='复制点歌'},1500)}showToast(`已复制：${text}`)}
-    function showToast(text){const t=$('#toast');t.querySelector('.toast-message').textContent=text;t.classList.remove('show');requestAnimationFrame(()=>t.classList.add('show'));clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.classList.remove('show'),2200)}
-    function makeSoundline(){const box=document.querySelector('.soundline');for(let i=0;i<72;i++){const bar=document.createElement('i');bar.style.setProperty('--h',`${8+Math.random()*38}px`);bar.style.setProperty('--d',`${-Math.random()*1.8}s`);bar.style.setProperty('--speed',`${1.2+Math.random()*1.2}s`);box.append(bar)}}
-    document.querySelectorAll('.filter-trigger').forEach(trigger=>trigger.onclick=e=>{e.stopPropagation();const box=trigger.closest('.select-box'),opening=!box.classList.contains('open');closeFilters(box);box.classList.toggle('open',opening);trigger.setAttribute('aria-expanded',String(opening));if(opening)positionFilterMenu(box)});document.addEventListener('click',()=>closeFilters());document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeFilters();document.activeElement?.blur()}});['#query','#language','#genre','#type'].forEach(id=>$(id).addEventListener(id==='#query'?'input':'change',e=>{if(id!=='#query'){const box=e.target.closest('.select-box');box.classList.remove('changed');requestAnimationFrame(()=>box.classList.add('changed'));setTimeout(()=>box.classList.remove('changed'),430)}apply(true)}));$('#random').onclick=()=>{if(!filtered.length)return showToast('当前条件下没有歌曲');const button=$('#random');button.classList.add('is-picking');button.textContent='正在抽选…';setTimeout(()=>{const picked=filtered[Math.floor(Math.random()*filtered.length)];button.classList.remove('is-picking');button.textContent='随机选一首';const notice=$('#notice');notice.textContent=`随机抽中：${picked.title}${picked.artist?`（${picked.artist}）`:''}`;notice.classList.remove('flash');requestAnimationFrame(()=>notice.classList.add('flash'));copySong(picked)},520)};$('#go').onclick=()=>{page=Number($('#jump').value)||1;render()};$('#jump').onkeydown=e=>{if(e.key==='Enter')$('#go').click()};makeSoundline();
-    function loadSongs(items){songs=items;filtered=[...songs];const count=$('#totalCount');count.textContent=songs.length;count.classList.add('bump');setTimeout(()=>count.classList.remove('bump'),500);addOptions('#language',songs.map(s=>s.language));addOptions('#genre',songs.map(s=>s.genre));addOptions('#type',songs.map(s=>s.type));render()}
-    fetch('songs.csv?v=20260730-631',{cache:'no-store'}).then(r=>{if(!r.ok)throw Error();return r.text()}).then(text=>loadSongs(parseCSV(text.replace(/^\uFEFF/,'')))).catch(()=>{if(Array.isArray(window.VERNA_SONGS)&&window.VERNA_SONGS.length)loadSongs(window.VERNA_SONGS);else{$('#rows').innerHTML='<tr><td colspan="7" class="empty">歌单载入失败，请确认 songs.csv 与网页位于同一文件夹。</td></tr>';$('#totalCount').textContent='0'}})
-  </script>
+  <script type="module" src="catalog-app.mjs"></script>
 </body>
 </html>
 
