@@ -56,11 +56,11 @@ function render(){
   const total=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));page=Math.max(1,Math.min(page,total));
   const items=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE),rows=$('#rows');
   rows.innerHTML=items.length?items.map((s,i)=>`<tr style="--i:${Math.min(i,9)}">
-    <td class="number">${esc(s.id)}</td>
-    <td class="title"><span class="song-title" title="${esc(s.title)}">${esc(s.title)}</span>${s.covers.length?'<span class="cover-links">'+s.covers.map((c,j)=>`<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer" title="${esc(c.title)}">翻唱${s.covers.length>1?j+1:''} ↗</a>`).join(' ')+'</span>':''}</td>
-    <td class="artist" title="${esc(s.artist)}">${esc(s.artist)||'<span class="muted">待补充</span>'}</td>
-    <td class="language">${esc(s.language)||'—'}</td>
-    <td class="genre" title="${esc(s.genre)}">${esc(s.genre)||'—'}</td>
+    <td class="number"><span class="field-value">${esc(s.id)}</span></td>
+    <td class="title"><span class="song-content"><span class="song-title" title="${esc(s.title)}">${esc(s.title)}</span>${s.covers.length?'<span class="cover-links">'+s.covers.map((c,j)=>`<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer" title="${esc(c.title)}">翻唱${s.covers.length>1?j+1:''} ↗</a>`).join(' ')+'</span>':''}</span></td>
+    <td class="artist" title="${esc(s.artist)}"><span class="field-value">${esc(s.artist)||'待补充'}</span></td>
+    <td class="language"><span class="field-value">${esc(s.language)||'—'}</span></td>
+    <td class="genre" title="${esc(s.genre)}"><span class="field-value">${esc(s.genre)||'—'}</span></td>
     <td class="permission"><span class="tag ${s.type==='SC'?'sc':s.type==='舰限'?'ship':'free'}">${esc(s.type)}</span></td>
     <td class="actions"><div class="song-actions"><button class="favorite" data-id="${esc(s.id)}" aria-pressed="${viewer.favorites.includes(s.id)}" aria-label="${viewer.favorites.includes(s.id)?'取消收藏':'收藏'} ${esc(s.title)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12v17l-6-4-6 4z"/></svg></button><button class="copy" data-id="${esc(s.id)}">复制点歌</button></div></td>
   </tr>`).join(''):'<tr><td colspan="7" class="empty">没有符合条件的歌曲，请调整搜索或筛选。</td></tr>';
