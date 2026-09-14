@@ -54,9 +54,18 @@ export function previewImport(existing,incoming){
   for(const candidate of incoming){validateSong(candidate);if(ids.has(candidate.id)||identities.has(identity(candidate))){skipped++;continue;}ids.add(candidate.id);identities.add(identity(candidate));additions.push(structuredClone(candidate));}
   if(existing.length+additions.length>5000)throw Error('歌单超过 5000 首上限。');return {additions,skipped};
 }
-export function filterSongs(songs,{query='',language='',genre='',type='',view='all',favorites=[],recent=[]}={}){
-  const q=normalize(query),result=songs.filter(s=>!s.deletedAt&&(!q||normalize([s.id,s.title,s.artist,s.notes].join(' ')).includes(q))&&(!language||s.language===language)&&(!genre||s.genre===genre)&&(!type||s.type===type)&&(view!=='favorites'||favorites.includes(s.id))&&(view!=='recent'||recent.includes(s.id)));
-  return result.sort(view==='recent'?(a,b)=>recent.indexOf(a.id)-recent.indexOf(b.id):(a,b)=>a.order-b.order);
+const WEEK=7*24*60*60*1000;
+export function isNewSong(song,now=Date.now()){
+  const age=now-Date.parse(song.createdAt);
+  return !song.deletedAt&&age>=0&&age<WEEK;
+}
+export function viewCounts(songs,{favorites=[],recent=[]}={},now=Date.now()){
+  const active=songs.filter(s=>!s.deletedAt),saved=new Set(favorites),visited=new Set(recent);
+  return {new:active.filter(s=>isNewSong(s,now)).length,favorites:active.filter(s=>saved.has(s.id)).length,recent:active.filter(s=>visited.has(s.id)).length};
+}
+export function filterSongs(songs,{query='',language='',genre='',type='',view='all',favorites=[],recent=[],now=Date.now()}={}){
+  const q=normalize(query),result=songs.filter(s=>!s.deletedAt&&(!q||normalize([s.id,s.title,s.artist,s.notes].join(' ')).includes(q))&&(!language||s.language===language)&&(!genre||s.genre===genre)&&(!type||s.type===type)&&(view!=='new'||isNewSong(s,now))&&(view!=='favorites'||favorites.includes(s.id))&&(view!=='recent'||recent.includes(s.id)));
+  return result.sort(view==='recent'?(a,b)=>recent.indexOf(a.id)-recent.indexOf(b.id):view==='new'?(a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)||a.order-b.order:(a,b)=>a.order-b.order);
 }
 export function recordRecent(recent,id){return [id,...recent.filter(v=>v!==id)].slice(0,30);}
 export function readViewer(raw){try{const data=JSON.parse(raw),clean=value=>Array.isArray(value)?[...new Set(value.filter(v=>typeof v==='string'&&v.length<=100))]:[];return {favorites:clean(data?.favorites).slice(0,5000),recent:clean(data?.recent).slice(0,30)};}catch{return {favorites:[],recent:[]};}}

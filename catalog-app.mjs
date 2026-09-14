@@ -1,4 +1,4 @@
-import {PAGE_SIZE,validateCatalog,migrateCSV,filterSongs,formatRequest,readViewer,recordRecent,MIGRATION_DATE} from './catalog-model.mjs';
+import {PAGE_SIZE,validateCatalog,migrateCSV,filterSongs,viewCounts,formatRequest,readViewer,recordRecent,MIGRATION_DATE} from './catalog-model.mjs';
 let songs=[],filtered=[],page=1,view='all',catalog=null,candidate=null,manualSong=null;
 const viewerKey='verna-songbook-viewer',cacheKey='verna-songbook-catalog';
 const readStorage=key=>{try{return localStorage.getItem(key);}catch{return null;}};
@@ -55,7 +55,15 @@ document.fonts?.ready.then(()=>{measuredPageWidth=0;reservePageSpace()});
 function render(){
   const total=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));page=Math.max(1,Math.min(page,total));
   const items=filtered.slice((page-1)*PAGE_SIZE,page*PAGE_SIZE),rows=$('#rows');
-  rows.innerHTML=items.length?items.map((s,i)=>`<tr style="--i:${Math.min(i,9)}"><td class="number">${esc(s.id)}</td><td class="title"><span class="song-title" title="${esc(s.title)}">${esc(s.title)}</span>${s.covers.length?'<span class="cover-links">'+s.covers.map((c,j)=>`<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer" title="${esc(c.title)}">翻唱${s.covers.length>1?j+1:''} ↗</a>`).join(' ')+'</span>':''}${s.notes?'<small class="song-notes" title="'+esc(s.notes)+'">'+esc(s.notes)+'</small>':''}</td><td title="${esc(s.artist)}">${esc(s.artist)||'<span class="muted">待补充</span>'}</td><td>${esc(s.language)||'—'}</td><td title="${esc(s.genre)}">${esc(s.genre)||'—'}</td><td><span class="tag ${s.type==='SC'?'sc':s.type==='舰限'?'ship':'free'}">${esc(s.type)}</span></td><td><div class="song-actions"><button class="favorite" data-id="${esc(s.id)}" aria-pressed="${viewer.favorites.includes(s.id)}" aria-label="${viewer.favorites.includes(s.id)?'取消收藏':'收藏'} ${esc(s.title)}">${viewer.favorites.includes(s.id)?'♥':'♡'}</button><button class="copy" data-id="${esc(s.id)}">复制点歌</button></div></td></tr>`).join(''):'<tr><td colspan="7" class="empty">没有符合条件的歌曲，请调整搜索或筛选。</td></tr>';
+  rows.innerHTML=items.length?items.map((s,i)=>`<tr style="--i:${Math.min(i,9)}">
+    <td class="number">${esc(s.id)}</td>
+    <td class="title"><span class="song-title" title="${esc(s.title)}">${esc(s.title)}</span>${s.covers.length?'<span class="cover-links">'+s.covers.map((c,j)=>`<a href="${esc(c.url)}" target="_blank" rel="noopener noreferrer" title="${esc(c.title)}">翻唱${s.covers.length>1?j+1:''} ↗</a>`).join(' ')+'</span>':''}</td>
+    <td class="artist" title="${esc(s.artist)}">${esc(s.artist)||'<span class="muted">待补充</span>'}</td>
+    <td class="language">${esc(s.language)||'—'}</td>
+    <td class="genre" title="${esc(s.genre)}">${esc(s.genre)||'—'}</td>
+    <td class="permission"><span class="tag ${s.type==='SC'?'sc':s.type==='舰限'?'ship':'free'}">${esc(s.type)}</span></td>
+    <td class="actions"><div class="song-actions"><button class="favorite" data-id="${esc(s.id)}" aria-pressed="${viewer.favorites.includes(s.id)}" aria-label="${viewer.favorites.includes(s.id)?'取消收藏':'收藏'} ${esc(s.title)}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.5h12v17l-6-4-6 4z"/></svg></button><button class="copy" data-id="${esc(s.id)}">复制点歌</button></div></td>
+  </tr>`).join(''):'<tr><td colspan="7" class="empty">没有符合条件的歌曲，请调整搜索或筛选。</td></tr>';
   reservePageSpace(items.length===PAGE_SIZE?rows.innerHTML:'');
   // Measure a complete page even if the first loaded view is a persisted favorite list.
   if(!pageReferenceRows&&songs.filter(s=>!s.deletedAt).length>=PAGE_SIZE){const savedView=view;view='all';filtered=filterSongs(songs);render();view=savedView;apply(false);return;}
@@ -63,6 +71,9 @@ function render(){
   rows.querySelectorAll('.copy').forEach(b=>b.onclick=()=>copySong(songs.find(s=>s.id===b.dataset.id)));
   rows.querySelectorAll('.favorite').forEach(b=>b.onclick=()=>{const id=b.dataset.id;viewer.favorites=viewer.favorites.includes(id)?viewer.favorites.filter(x=>x!==id):[...viewer.favorites,id];persistViewer();apply(false);[...rows.querySelectorAll('.favorite')].find(x=>x.dataset.id===id)?.focus({preventScroll:true});});
   document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.view===view)));
+  const counts=viewCounts(songs,viewer);
+  for(const name of ['new','favorites','recent'])$('#'+name+'-count').textContent=counts[name];
+  $('#clear-recent').hidden=view!=='recent'||counts.recent===0;
   renderPages(total);$('#pageMeta').textContent=`找到 ${filtered.length} 首 · 第 ${page}/${total} 页`;$('#jump').value=page;
 }
 
@@ -75,13 +86,13 @@ function nextCandidate(){const choices=filtered.filter(s=>s.id!==candidate?.id),
 function showToast(text){const t=$('#toast');t.querySelector('.toast-message').textContent=text;t.classList.remove('show');requestAnimationFrame(()=>t.classList.add('show'));clearTimeout(showToast.timer);showToast.timer=setTimeout(()=>t.classList.remove('show'),2200)}
 function makeSoundline(){const box=document.querySelector('.soundline');for(let i=0;i<72;i++){const bar=document.createElement('i');bar.style.setProperty('--h',`${8+Math.random()*38}px`);bar.style.setProperty('--d',`${-Math.random()*1.8}s`);bar.style.setProperty('--speed',`${1.2+Math.random()*1.2}s`);box.append(bar)}}
 document.querySelectorAll('.filter-trigger').forEach(trigger=>trigger.onclick=e=>{e.stopPropagation();const box=trigger.closest('.select-box'),opening=!box.classList.contains('open');closeFilters(box);box.classList.toggle('open',opening);trigger.setAttribute('aria-expanded',String(opening));if(opening)positionFilterMenu(box)});document.addEventListener('click',()=>closeFilters());document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeFilters();document.activeElement?.blur()}});['#query','#language','#genre','#type'].forEach(id=>$(id).addEventListener(id==='#query'?'input':'change',e=>{if(id!=='#query'){const box=e.target.closest('.select-box');box.classList.remove('changed');requestAnimationFrame(()=>box.classList.add('changed'));setTimeout(()=>box.classList.remove('changed'),430)}apply(true)}));$('#random').onclick=()=>{nextCandidate();if(candidate)$('#candidate').showModal();};$('#go').onclick=()=>{page=Number($('#jump').value)||1;render()};$('#jump').onkeydown=e=>{if(e.key==='Enter')$('#go').click()};makeSoundline();
-function loadSongs(data){catalog=data;songs=data.songs;$('#totalCount').textContent=songs.filter(s=>!s.deletedAt).length;for(const field of ['language','genre','type']){const value=$('#'+field).value;addOptions('#'+field,songs.filter(s=>!s.deletedAt).map(s=>s[field]));const box=$('#'+field).closest('.select-box');const option=[...box.querySelectorAll('.filter-option')].find(o=>o.dataset.value===value);if(option){$('#'+field).value=value;box.querySelector('.filter-value').textContent=option.textContent;box.querySelectorAll('.filter-option').forEach(o=>{o.classList.toggle('selected',o===option);o.setAttribute('aria-selected',String(o===option));});}else{$('#'+field).value='';}}candidate=null;$('#candidate').close();apply(false);}
+function loadSongs(data){catalog=data;songs=data.songs;$('#totalCount').textContent=songs.filter(s=>!s.deletedAt).length;for(const field of ['language','genre','type']){const value=$('#'+field).value;addOptions('#'+field,songs.filter(s=>!s.deletedAt).map(s=>s[field]));const box=$('#'+field).closest('.select-box');const option=[...box.querySelectorAll('.filter-option')].find(o=>o.dataset.value===value);if(option){$('#'+field).value=value;box.querySelector('.filter-value').textContent=option.textContent;box.querySelectorAll('.filter-option').forEach(o=>{o.classList.toggle('selected',o===option);o.setAttribute('aria-selected',String(o===option));});}else{$('#'+field).value='';box.querySelector('.filter-value').textContent=box.dataset.placeholder;}}candidate=null;$('#candidate').close();apply(false);}
 
 let lastRefresh=0,loading=false,hasCanonical=false;
 async function refreshCatalog(force=false){
   if(loading||(!force&&Date.now()-lastRefresh<15000))return;loading=true;lastRefresh=Date.now();
   const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),10000);
-  try{const response=await fetch('./catalog.json',{cache:'no-store',credentials:'omit',signal:controller.signal});if(!response.ok)throw Error();const data=validateCatalog(await response.json());hasCanonical=true;if(!catalog||JSON.stringify(data)!==JSON.stringify(catalog))loadSongs(data);try{localStorage.setItem(cacheKey,JSON.stringify(data));}catch{}$('#notice').textContent='';}
+  try{const response=await fetch('./catalog.json',{cache:'no-store',credentials:'omit',signal:controller.signal});if(!response.ok)throw Error();const data=validateCatalog(await response.json());hasCanonical=true;if(!catalog||JSON.stringify(data)!==JSON.stringify(catalog))loadSongs(data);else if(viewCounts(songs,viewer).new!==Number($('#new-count').textContent))apply(false);try{localStorage.setItem(cacheKey,JSON.stringify(data));}catch{}$('#notice').textContent='';}
   catch{if(!hasCanonical){try{const cached=validateCatalog(JSON.parse(readStorage(cacheKey)));hasCanonical=true;loadSongs(cached);}catch{if(!catalog)await loadFallback();}}$('#notice').textContent=hasCanonical?'网络暂不可用，正在显示最近一次有效歌单。':'正在显示初始离线歌单；恢复网络后会自动更新。';}
   finally{clearTimeout(timer);loading=false;}
 }

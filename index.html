@@ -74,11 +74,13 @@
         <button id="random" class="random">随机选一首</button>
       </div>
       <div class="viewer-tools" aria-label="我的歌曲">
-        <button data-view="all" aria-pressed="true">全部歌曲</button>
-        <button data-view="favorites" aria-pressed="false">我的收藏</button>
-        <button data-view="recent" aria-pressed="false">最近点过</button>
-        <button id="clear-recent">清空最近点过</button>
-        <span>收藏与最近点过保存在当前浏览器</span>
+        <div class="view-tabs" role="group" aria-label="歌曲分类">
+          <button data-view="all" aria-pressed="true">全部</button>
+          <button data-view="new" aria-pressed="false" title="近 7 天新增的歌曲">新歌 <span id="new-count" class="view-count">0</span></button>
+          <button data-view="favorites" aria-pressed="false">收藏 <span id="favorites-count" class="view-count">0</span></button>
+          <button data-view="recent" aria-pressed="false">最近 <span id="recent-count" class="view-count">0</span></button>
+        </div>
+        <button id="clear-recent" hidden>清空最近点过</button>
       </div>
       <div id="notice" class="notice" aria-live="polite"></div>
       <div class="table-shell">
@@ -98,15 +100,17 @@
     <a href="https://beian.miit.gov.cn/" target="_blank" rel="noopener noreferrer">浙ICP备2026066791号-1</a>
     <a class="police-filing" href="https://beian.mps.gov.cn/#/query/webSearch?code=33018502002665" target="_blank" rel="noopener noreferrer"><img src="assets/police-beian.png" width="20" height="22" alt="" aria-hidden="true">浙公网安备33018502002665号</a>
   </footer>
-  <dialog id="candidate" aria-labelledby="candidate-heading">
-    <h2 id="candidate-heading">随机候选</h2><p id="candidate-name" class="candidate-title"></p><p id="candidate-artist"></p>
-    <p>从当前搜索和筛选结果中选出，确认后复制点歌文字。</p>
-    <div class="dialog-actions"><button id="another">换一首</button><button id="choose-candidate">确认复制</button><button data-close="candidate">取消</button></div>
+  <dialog id="candidate" class="song-dialog" aria-labelledby="candidate-heading">
+    <button class="dialog-close" data-close="candidate" aria-label="关闭随机候选">×</button>
+    <h2 id="candidate-heading">随机候选</h2>
+    <div class="candidate-song"><p id="candidate-name" class="candidate-title"></p><p id="candidate-artist"></p></div>
+    <div class="dialog-actions"><button id="another">换一首</button><button id="choose-candidate" class="primary-action">就点这首</button></div>
   </dialog>
-  <dialog id="manual-copy" aria-labelledby="manual-heading">
-    <h2 id="manual-heading">手动复制点歌</h2><p>浏览器未允许自动复制。请选中下面的文字复制，再确认已完成。</p>
+  <dialog id="manual-copy" class="song-dialog" aria-labelledby="manual-heading">
+    <button class="dialog-close" data-close="manual-copy" aria-label="关闭手动复制">×</button>
+    <h2 id="manual-heading">手动复制点歌</h2><p class="manual-hint">浏览器未允许自动复制，请复制下面的文字。</p>
     <textarea id="manual-value" readonly aria-label="点歌文字"></textarea>
-    <div class="dialog-actions"><button id="manual-copy-done">我已手动复制</button><button data-close="manual-copy">取消</button></div>
+    <div class="dialog-actions"><button id="manual-copy-done" class="primary-action">我已手动复制</button></div>
   </dialog>
   <script src="songs-data.js?v=20260730-631"></script>
   <script type="module" src="catalog-app.mjs"></script>
